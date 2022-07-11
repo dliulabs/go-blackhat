@@ -30,12 +30,12 @@ func main() {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	host := "scanme.nmap.org"
-	for port := 20; port < 1000; port++ {
+	for port := 20; port < 65535; port++ {
 		wg.Add(1)
 		addr := fmt.Sprintf("%s:%d", host, port)
 		go func(addr string) {
+			defer wg.Done()
 			Scan(addr, &mu)
-			wg.Done()
 		}(addr)
 	}
 	wg.Wait()
