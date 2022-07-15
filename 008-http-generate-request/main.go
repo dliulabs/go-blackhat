@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 )
 
+type ReqData struct {
+	Foo string `json:"data"`
+}
+
+type RespData struct {
+	Data ReqData `json:"data"`
+}
+
 func main() {
-	body := struct {
-		Foo string `json:"foo"` // be sure the fileds are in upper case
-	}{
+	body := ReqData{
 		Foo: "bar",
 	}
 	b := new(bytes.Buffer)
@@ -29,13 +34,18 @@ func main() {
 	if err != nil {
 		log.Panicln(err)
 	}
+	defer resp.Body.Close()
 	// resp.Body is an io.ReadCloser
-	respData, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Panicln(err)
-	}
-	fmt.Println(string(respData))
-	resp.Body.Close()
+	//respData, err := ioutil.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Panicln(err)
+	// }
+	// fmt.Println(string(respData))
 	fmt.Println(resp.Status)
 
+	var data RespData
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("%v\n", data)
 }
