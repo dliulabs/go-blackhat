@@ -14,6 +14,7 @@ import (
 var (
 	m  *monitor.Monitor = &monitor.Monitor{Logger: log.New(os.Stdout, "SERVER: ", 0)}
 	m2 *monitor.Monitor = &monitor.Monitor{Logger: log.New(os.Stdout, "CLIENT: ", 0)}
+	m3 *monitor.Monitor = &monitor.Monitor{Logger: log.New(os.Stdout, "INTERLOPER: ", 0)}
 )
 
 func echoServerUDP(ctx context.Context, addr string) (net.Addr, error) {
@@ -61,8 +62,26 @@ func main() {
 	defer func() { _ = client.Close() }()
 	m2.Printf("Listening at %s\n", client.LocalAddr().String())
 
+	// Send a message to the client from a rogue connection.
+	interloper, err := net.ListenPacket("udp", "127.0.0.1:")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	interrupt := []byte("pardon me")
+	n, err := interloper.WriteTo(interrupt, client.LocalAddr())
+	if err != nil {
+		log.Fatal(err)
+	}
+	m3.Printf("Send %s\n", interrupt[:n])
+	_ = interloper.Close()
+
+	if len(interrupt) != n {
+		log.Fatalf("wrote %d bytes of %d", n, len(interrupt))
+	}
+
 	msg := []byte("ping")
-	n, err := client.WriteTo(msg, serverAddr)
+	n, err = client.WriteTo(msg, serverAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,9 +95,9 @@ func main() {
 	m2.Printf("Received %s from %s\n", buf[:n], addr)
 
 	if addr.String() != serverAddr.String() {
-		log.Fatalf("received reply from %q instead of %q", addr, serverAddr)
+		m2.Printf("received interrupt from %q instead of server %q", addr, serverAddr)
 	}
 	if !bytes.Equal(msg, buf[:n]) {
-		log.Fatalf("expected reply %q; actual reply %q", msg, buf[:n])
+		m2.Printf("expected reply %q; actual reply %q", msg, buf[:n])
 	}
 }
